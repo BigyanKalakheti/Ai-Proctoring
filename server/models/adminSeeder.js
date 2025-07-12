@@ -1,8 +1,18 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const Admin = require('./Admin'); // adjust this path to match your project
+const Admin = require('./Admin'); // adjust this path as necessary
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/exam_proctoring';
+const {
+  MONGODB_URI,
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+  ADMIN_USERNAME,
+} = process.env;
+
+if (!MONGODB_URI || !ADMIN_EMAIL || !ADMIN_PASSWORD || !ADMIN_USERNAME) {
+  console.error('❌ Missing required environment variables.');
+  process.exit(1);
+}
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
@@ -16,18 +26,16 @@ mongoose.connect(MONGODB_URI, {
 
 async function seedAdmin() {
   try {
-    const email = 'admin@example.com';
-
-    const existing = await Admin.findOne({ email });
+    const existing = await Admin.findOne({ email: ADMIN_EMAIL });
     if (existing) {
       console.log('⚠️ Admin already exists.');
-      return process.exit();
+      return;
     }
 
     const admin = new Admin({
-      username: 'adminuser',
-      email,
-      password: 'Password123!', // will be hashed by the pre-save hook
+      username: ADMIN_USERNAME,
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD, // will be hashed by your schema pre-save hook
       role: 'admin'
     });
 
