@@ -1,27 +1,52 @@
-import React, { useState } from 'react';
-import { Search, Eye, AlertTriangle, Clock, Award, Filter, ChevronRight } from 'lucide-react';
-import { mockResults, mockUsers, mockExams } from '../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { Search, Eye, AlertTriangle, Clock, Award, Filter } from 'lucide-react';
 
 const ResultsManagement = () => {
-  const [results, setResults] = useState(mockResults);
+  const [results, setResults] = useState([]); // Load results from your API here
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedResult, setSelectedResult] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [violationsData, setViolationsData] = useState({}); // { [resultId]: [violations] }
+  const [loadingViolations, setLoadingViolations] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const getUserById = (userId) => mockUsers.find(user => user.id === userId);
-  const getExamById = (examId) => mockExams.find(exam => exam.id === examId);
+  // Fetch results from API on mount (example)
+  useEffect(() => {
+    async function fetchResults() {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:5000/api/results', {
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json',
+                    },
+                    // If using cookies: credentials: 'include',
+                  });
+        const data = await res.json();
+        setResults(data.results);
+      } catch (err) {
+        console.error('Failed to fetch results', err);
+      }
+    }
+    fetchResults();
+  }, []);
 
+  // Filter results based on search and status filter
   const filteredResults = results.filter(result => {
-    const user = getUserById(result.userId);
-    const exam = getExamById(result.examId);
-    const matchesSearch = user?.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user?.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user?.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         exam?.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const user = result.userId;
+    const exam = result.examId;
+
+    const matchesSearch =
+      user?.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user?.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user?.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      exam?.title.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatus = filterStatus === 'all' || result.status === filterStatus;
+
     return matchesSearch && matchesStatus;
   });
 
@@ -29,6 +54,31 @@ const ResultsManagement = () => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentResults = filteredResults.slice(startIndex, startIndex + itemsPerPage);
 
+  // Fetch violation details by IDs
+  const fetchViolationsByIds = async (violationIds) => {
+    if (!violationIds || violationIds.length === 0) return [];
+
+    try {
+      setLoadingViolations(true);
+      const idsParam = violationIds.join(',');
+      const token= localStorage.getItem('token')
+      const res = await fetch(`http://localhost:5000/api/violations?ids=${idsParam}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await res.json();
+      setLoadingViolations(false);
+      return data.violations || [];
+    } catch (error) {
+      setLoadingViolations(false);
+      console.error('Failed to fetch violations', error);
+      return [];
+    }
+  };
+
+  // Colors for status and score
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed':
@@ -64,7 +114,6 @@ const ResultsManagement = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Results & Reports</h2>
       </div>
@@ -115,13 +164,13 @@ const ResultsManagement = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {currentResults.map(result => {
-                const user = getUserById(result.userId);
-                const exam = getExamById(result.examId);
-                const duration = new Date(result.endTime).getTime() - new Date(result.startTime).getTime();
-                const durationMinutes = Math.floor(duration / (1000 * 60));
-                
+                const user = result.userId;
+                const exam = result.examId;
+                const durationMs = new Date(result.endTime).getTime() - new Date(result.startTime).getTime();
+                const durationMinutes = Math.floor(durationMs / (1000 * 60));
+
                 return (
-                  <tr key={result.id} className="hover:bg-gray-50">
+                  <tr key={result._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
@@ -134,7 +183,7 @@ const ResultsManagement = () => {
                           ) : (
                             <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
                               <span className="text-sm font-medium text-gray-700">
-                                {user?.firstName.charAt(0)}{user?.lastName.charAt(0)}
+                                {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
                               </span>
                             </div>
                           )}
@@ -192,18 +241,6 @@ const ResultsManagement = () => {
                           <Eye className="w-4 h-4 mr-1" />
                           Details
                         </button>
-                        {result.violations.length > 0 && (
-                          <button
-                            onClick={() => {
-                              setSelectedResult(result);
-                              setSelectedUser(user || null);
-                            }}
-                            className="text-red-600 hover:text-red-900 flex items-center"
-                          >
-                            <AlertTriangle className="w-4 h-4 mr-1" />
-                            Violations
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -251,20 +288,65 @@ const ResultsManagement = () => {
       </div>
 
       {/* Result Details Modal */}
-      {selectedResult && (
+      {/* {selectedResult && (
         <ResultDetailsModal
           result={selectedResult}
-          user={getUserById(selectedResult.userId)}
-          exam={getExamById(selectedResult.examId)}
+          user={selectedResult.userId}
+          exam={selectedResult.examId}
+          violations={violationsData[selectedResult._id] || []}
+          loadingViolations={loadingViolations}
+          fetchViolations={() =>
+            fetchViolationsByIds(selectedResult.violations).then(data => {
+              setViolationsData(prev => ({ ...prev, [selectedResult._id]: data }));
+            })
+          }
           onClose={() => setSelectedResult(null)}
+          getViolationSeverityColor={getViolationSeverityColor}
         />
-      )}
+      )} */}
+      {selectedResult && (
+  <ResultDetailsModal
+    result={selectedResult}
+    user={selectedResult.userId}
+    exam={selectedResult.examId}
+    violations={violationsData[selectedResult._id] || []}
+    loadingViolations={loadingViolations}
+    fetchViolations={() =>
+      fetchViolationsByIds(selectedResult.violations).then(data => {
+        setViolationsData(prev => ({ ...prev, [selectedResult._id]: data }));
+      })
+    }
+    onClose={() => setSelectedResult(null)}
+    getViolationSeverityColor={getViolationSeverityColor}
+    selectedImageUrl={selectedImageUrl}
+    setSelectedImageUrl={setSelectedImageUrl}
+  />
+)}
+
     </div>
   );
 };
 
-const ResultDetailsModal = ({ result, user, exam, onClose }) => {
+const ResultDetailsModal = ({
+  result,
+  user,
+  exam,
+  violations,
+  loadingViolations,
+  fetchViolations,
+  onClose,
+  getViolationSeverityColor,
+  selectedImageUrl,
+  setSelectedImageUrl,
+}) => {
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Fetch violations on tab switch to Violations tab if not already fetched
+  useEffect(() => {
+    if (activeTab === 'violations' && violations.length === 0) {
+      fetchViolations();
+    }
+  }, [activeTab]);
 
   const getViolationIcon = (type) => {
     switch (type) {
@@ -283,19 +365,6 @@ const ResultDetailsModal = ({ result, user, exam, onClose }) => {
     }
   };
 
-  const getViolationSeverityColor = (severity) => {
-    switch (severity) {
-      case 'high':
-        return 'bg-red-100 text-red-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const duration = new Date(result.endTime).getTime() - new Date(result.startTime).getTime();
   const durationMinutes = Math.floor(duration / (1000 * 60));
 
@@ -304,10 +373,7 @@ const ResultDetailsModal = ({ result, user, exam, onClose }) => {
       <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-semibold">Exam Result Details</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             ✕
           </button>
         </div>
@@ -352,7 +418,7 @@ const ResultDetailsModal = ({ result, user, exam, onClose }) => {
                   ) : (
                     <div className="h-12 w-12 rounded-full bg-gray-300 flex items-center justify-center">
                       <span className="text-lg font-medium text-gray-700">
-                        {user?.firstName.charAt(0)}{user?.lastName.charAt(0)}
+                        {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
                       </span>
                     </div>
                   )}
@@ -393,8 +459,7 @@ const ResultDetailsModal = ({ result, user, exam, onClose }) => {
                   <div className="text-2xl font-bold text-green-600">
                     {durationMinutes}
                   </div>
-                  <div className="text-sm text-gray-600">Duration</div>
-                  <div className="text-xs text-gray-500 mt-1">minutes</div>
+                  <div className="text-sm text-gray-600">Duration (minutes)</div>
                 </div>
               </div>
 
@@ -404,42 +469,54 @@ const ResultDetailsModal = ({ result, user, exam, onClose }) => {
                     {result.violations.length}
                   </div>
                   <div className="text-sm text-gray-600">Violations</div>
-                  <div className="text-xs text-gray-500 mt-1">detected</div>
                 </div>
               </div>
 
               <div className="bg-white p-4 rounded-lg border border-gray-200">
                 <div className="text-center">
-                  <div className={`text-2xl font-bold ${
-                    result.status === 'completed' ? 'text-green-600' :
-                    result.status === 'in-progress' ? 'text-yellow-600' :
-                    'text-red-600'
-                  }`}>
-                    {result.status.charAt(0).toUpperCase() + result.status.slice(1)}
-                  </div>
-                  <div className="text-sm text-gray-600">Status</div>
+                  <span className={`inline-block px-3 py-1 rounded-full ${result.status === 'completed' ? 'bg-green-100 text-green-800' : result.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                    {result.status}
+                  </span>
+                  <div className="text-sm text-gray-600 mt-1">Status</div>
                 </div>
               </div>
             </div>
-
           </div>
         )}
 
         {activeTab === 'violations' && (
           <div>
-            {result.violations.length === 0 ? (
-              <p className="text-gray-600">No violations detected.</p>
+            {loadingViolations ? (
+              <p>Loading violations...</p>
+            ) : violations.length === 0 ? (
+              <p>No violations detected.</p>
             ) : (
-              <ul className="space-y-4">
-                {result.violations.map((violation, idx) => (
-                  <li key={idx} className={`p-4 rounded-lg border ${getViolationSeverityColor(violation.severity)}`}>
-                    <div className="flex items-center space-x-3">
-                      <span className="text-xl">{getViolationIcon(violation.type)}</span>
-                      <div>
-                        <p className="font-semibold">{violation.description}</p>
-                        <p className="text-sm text-gray-600">Severity: {violation.severity}</p>
-                        <p className="text-xs text-gray-500">{new Date(violation.timestamp).toLocaleString()}</p>
-                      </div>
+              <ul className="space-y-4 max-h-[60vh] overflow-y-auto">
+                {violations.map((v) => (
+                  <li key={v._id} className="border border-gray-200 rounded-lg p-4 flex items-center space-x-4">
+                    <div
+                      className={`inline-flex items-center justify-center w-10 h-10 rounded-full ${getViolationSeverityColor(v.severity)}`}
+                      title={v.type}
+                    >
+                      <span className="text-lg">{getViolationIcon(v.type)}</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold">{v.type.replace(/-/g, ' ').toUpperCase()}</p>
+                      <p className="text-sm text-gray-600">{v.description}</p>
+                      <p className="text-xs text-gray-400">Severity: {v.severity}</p>
+                      <p className="text-xs text-gray-400">Timestamp: {new Date(v.timestamp).toLocaleString()}</p>
+                        {v.evidenceUrl && (
+                          <div className="mt-2">
+                            <button
+                              onClick={() => setSelectedImageUrl(v.evidenceUrl)}
+                              className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                            >
+                              View Evidence
+                            </button>
+                          </div>
+                        )}
+
+
                     </div>
                   </li>
                 ))}
@@ -448,8 +525,33 @@ const ResultDetailsModal = ({ result, user, exam, onClose }) => {
           </div>
         )}
       </div>
+            {/* 🔍 Evidence Image Modal */}
+      {selectedImageUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black bg-opacity-70 flex items-center justify-center"
+          onClick={() => setSelectedImageUrl(null)}
+        >
+          <div
+            className="relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={selectedImageUrl}
+              alt="Full Violation Evidence"
+              className="max-w-full max-h-[80vh] rounded-lg shadow-lg"
+            />
+            <button
+              onClick={() => setSelectedImageUrl(null)}
+              className="absolute top-2 right-2 text-white bg-black bg-opacity-60 px-3 py-1 rounded-full"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 
 export default ResultsManagement;

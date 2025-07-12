@@ -1,20 +1,103 @@
-import React, { useState } from 'react';
+// import React, { useState } from 'react';
+// import { Search, Plus, Edit2, Trash2, Eye, Filter } from 'lucide-react';
+// import { mockUsers } from '../data/mockData';
+// import axios from 'axios';
+
+
+// const UserManagement = () => {
+//   const [users, setUsers] = useState(mockUsers);
+//   const [searchTerm, setSearchTerm] = useState('');
+//   const [filterStatus, setFilterStatus] = useState('all');
+//   const [showAddModal, setShowAddModal] = useState(false);
+//   const [selectedUser, setSelectedUser] = useState(null);
+//   const [currentPage, setCurrentPage] = useState(1);
+//   const itemsPerPage = 10;
+//   const API = import.meta.env.VITE_API_BASE_URL;
+
+//   const filteredUsers = users.filter(user => {
+//     const matchesSearch = user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+//                          user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+//                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
+//     const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
+//     return matchesSearch && matchesStatus;
+//   });
+
+//   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+//   const startIndex = (currentPage - 1) * itemsPerPage;
+//   const currentUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage);
+
+// const handleDeleteUser = async (userId) => {
+//   try {
+//     const token = localStorage.getItem('token');
+//     await axios.delete(`${API}/users/${userId}`, {
+//       headers: { Authorization: `Bearer ${token}` }
+//     });
+//     setUsers(users.filter(user => user._id !== userId));
+//   } catch (error) {
+//     console.error('Error deleting user:', error);
+//   }
+// };
+
+//   const handleAddUser = async (userData) => {
+//   try {
+//     const token = localStorage.getItem('token');
+//     const res = await axios.post(`${API}/users/create`, userData, {
+//       headers: {
+//         Authorization: `Bearer ${token}`,
+//         'Content-Type': 'application/json'
+//       }
+//     });
+//     setUsers((prev) => [res.data, ...prev]);
+//     setShowAddModal(false);
+//   } catch (error) {
+//     console.error('Error creating user:', error);
+//   }
+// };
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Eye, Filter } from 'lucide-react';
-import { mockUsers } from '../data/mockData';
+import axios from 'axios';
 
 const UserManagement = () => {
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState([]);  // Start empty
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
+  // Fetch users from backend on component mount
+useEffect(() => {
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API}/users`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      console.log('Fetched users:', res.data);  // Check what you get here
+
+      // If res.data is array, use as is, else adjust
+      if (Array.isArray(res.data)) {
+        setUsers(res.data);
+      } else if (Array.isArray(res.data.users)) {
+        setUsers(res.data.users);
+      } else {
+        console.error('Unexpected data format from backend:', res.data);
+        setUsers([]); // fallback empty array
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
+  };
+  fetchUsers();
+}, [API]);
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -23,43 +106,33 @@ const UserManagement = () => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage);
 
-const handleDeleteUser = async (userId) => {
-  try {
-    const token = localStorage.getItem('token');
-    await axios.delete(`/api/users/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    setUsers(users.filter(user => user._id !== userId)); // Note: backend uses `_id`, not `id`
-  } catch (error) {
-    console.error('Error deleting user:', error);
-  }
-};
+  const handleDeleteUser = async (userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API}/users/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUsers(users.filter(user => user._id !== userId));
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
+  };
 
-
-  // const handleAddUser = (userData) => {
-  //   const newUser = {
-  //     ...userData,
-  //     id: Date.now().toString(),
-  //     createdAt: new Date().toISOString(),
-  //   };
-  //   setUsers([...users, newUser]);
-  //   setShowAddModal(false);
-  // };
   const handleAddUser = async (userData) => {
-  try {
-    const token = localStorage.getItem('token');
-    const res = await axios.post('/api/users', userData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    setUsers((prev) => [res.data, ...prev]);
-    setShowAddModal(false);
-  } catch (error) {
-    console.error('Error creating user:', error);
-  }
-};
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${API}/users/create`, userData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      setUsers(prev => [res.data, ...prev]);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error('Error creating user:', error);
+    }
+  };
 
 
   return (
@@ -132,7 +205,7 @@ const handleDeleteUser = async (userId) => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {currentUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
+                <tr key={user._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
@@ -187,7 +260,7 @@ const handleDeleteUser = async (userId) => {
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteUser(user.id)}
+                        onClick={() => handleDeleteUser(user._id)}
                         className="text-red-600 hover:text-red-900 p-1 rounded"
                       >
                         <Trash2 className="w-4 h-4" />
