@@ -139,6 +139,7 @@ export default function RealTimeFaceVerification() {
             toastId: "no-face",
             autoClose: false,
             closeOnClick: true,
+            position: "bottom-right",
             closeButton: true,
             draggable: true,
           });
@@ -190,11 +191,43 @@ export default function RealTimeFaceVerification() {
             closeOnClick: true,
             closeButton: true,
             draggable: true,
-            position: "top-right",
+            position: "bottom-right",
           });
           playAlert();
           addLog("Multiple faces detected");
           lastFaceState.current = "multi-face";
+          const canvas = canvasRef.current;
+          if (canvas) {
+            canvas.toBlob(async (blob) => {
+              if (!blob) return;
+
+              try {
+                const uploadedUrl = await uploadToCloudinary(blob);
+                console.log('✅ Evidence uploaded:', uploadedUrl);
+
+                // Send violation to backend
+                const token = localStorage.getItem('token');
+                await fetch(`${import.meta.env.VITE_API_BASE_URL}/violations`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({
+                    examId, 
+                    userId,
+                    type: 'multiple-faces',
+                    evidenceUrl: uploadedUrl,
+                    severity: "high",
+                    description: 'Multiple faces detected during exam',
+                  }),
+                });
+                console.log('🚀 Violation logged successfully');
+              } catch (err) {
+                console.error('Failed to upload violation evidence or log violation:', err);
+              }
+            }, 'image/jpeg');
+          }
         }
         return;
       }
@@ -225,7 +258,8 @@ export default function RealTimeFaceVerification() {
           enrolledDescriptor.current = detection.descriptor;
           setShowEnrollButton(false);
           pendingEnrollment.current = false;
-          toast.success("✅ Face enrolled successfully", { autoClose: 3000 });
+          toast.success("✅ Face enrolled successfully", { autoClose: 2000,              closeOnClick: true,
+              closeButton: true });
           addLog("Face enrolled");
           setFaceStatus("Face enrolled, monitoring...");
           return;
@@ -251,7 +285,7 @@ export default function RealTimeFaceVerification() {
               closeOnClick: true,
               closeButton: true,
               draggable: true,
-              position: "top-right",
+              position: "bottom-right",
             });
           }
           playAlert();

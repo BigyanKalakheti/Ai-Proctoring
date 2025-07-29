@@ -52,6 +52,7 @@ app.use('/api/users', require('./routes/users'));  // Admin-only
 app.use('/api/user', require('./routes/user'));  //  user (self)
 app.use('/api/exams', require('./routes/exams'));
 app.use('/api/results', require('./routes/results'));
+app.use('/api/violations', require('./routes/violations'));
 
 // Health check
 app.get('/api/health', (req, res) => {

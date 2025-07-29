@@ -1,123 +1,150 @@
-# 👁️ Real-Time Face Verification System
+# 🛡️ AI Proctoring & Exam Management System
 
-A real-time face verification system built with **React**, **MediaPipe**, and **FaceAPI.js**. This application verifies a user's identity using face recognition and alerts on unauthorized or suspicious face activity.
+A full-stack, real-time AI proctoring and online exam management platform. Built with **React**, **Vite**, **face-api.js**, **MediaPipe**, **Express**, and **MongoDB**. The system provides secure online exams with live face verification, behavioral monitoring, violation logging, and robust admin/user dashboards.
 
 ---
 
 ## 🚀 Features
 
-* ✅ **Face Enrollment** – Enroll a single user's face
-* 🧠 **Real-Time Face Recognition**
-* 🢍 **Alerts on No Face / Multiple Faces / Unauthorized Face**
-* 🔊 **Audio and Vibration Notifications**
-* 📜 **Live Event Logs**
-* 🖼️ **Canvas Overlay for Face Detection**
+### For Admins
+- **Dashboard**: Overview of users, exams, results, and violations
+- **User Management**: Add, edit, and manage users
+- **Exam Management**: Create, edit, and schedule exams
+- **Results & Reports**: View exam results and proctoring violation logs
+
+### For Users
+- **Exam Portal**: Take assigned exams with real-time proctoring
+- **Face Verification**: Live face recognition using webcam
+- **Proctoring Event Detection**: Detects tab switch, fullscreen exit, window blur, and high microphone volume
+- **Violation Logging**: All suspicious events are logged and sent to the backend
+- **Live Feedback**: Audio, vibration, and toast notifications for proctoring events
 
 ---
 
 ## 🛠️ Technologies Used
 
-* React
-* @mediapipe/face\_detection
-* face-api.js
-* react-toastify
-* HTML5 Canvas
-* Web Audio API
-* Vibration API
+### Frontend
+- React, Vite, Tailwind CSS
+- face-api.js, @mediapipe/face_detection
+- react-toastify, lucide-react, react-webcam
+
+### Backend
+- Node.js, Express, MongoDB (Mongoose)
+- JWT Auth, Helmet, CORS, Multer, Morgan
 
 ---
 
 ## 📦 Installation
 
 ### 1. Clone the Repository
-
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
-cd your-repo-name
+git clone https://github.com/BigyanKalakheti/Ai-Proctoring.git
+cd Ai-Proctoring
 ```
 
-### 2. Install Dependencies
-
+### 2. Setup the Backend
 ```bash
+cd server
 npm install
-```
-
-### 3. Download FaceAPI Models
-
-Download the following models from [face-api.js GitHub](https://github.com/justadudewhohacks/face-api.js/tree/master/weights) and place them in `public/models/`:
-
-* `face_landmark_68_model-weights_manifest.json`
-* `face_recognition_model-weights_manifest.json`
-* `tiny_face_detector_model-weights_manifest.json`
-
-**Folder structure should look like:**
-
-```
-public/
-  └── models/
-        ├── face_landmark_68_model-weights_manifest.json
-        ├── face_recognition_model-weights_manifest.json
-        └── tiny_face_detector_model-weights_manifest.json
-```
-
-### 4. Run the App
-
-```bash
+# Create a .env file with MONGODB_URI and JWT_SECRET
 npm run dev
 ```
 
-Visit: [http://localhost:5173](http://localhost:5173)
+### 3. Setup the Frontend
+```bash
+cd ../client
+npm install
+# Download face-api.js models and place in public/models/
+# (see below for details)
+npm run dev
+```
+
+### 4. Download FaceAPI Models
+Download the following models from [face-api.js GitHub](https://github.com/justadudewhohacks/face-api.js/tree/master/weights) and place them in `client/public/models/`:
+- `face_landmark_68_model-weights_manifest.json`
+- `face_recognition_model-weights_manifest.json`
+- `tiny_face_detector_model-weights_manifest.json`
+
+**Folder structure:**
+```
+client/public/models/
+  face_landmark_68_model-weights_manifest.json
+  face_recognition_model-weights_manifest.json
+  tiny_face_detector_model-weights_manifest.json
+  ... (other model files)
+```
 
 ---
 
-## 🡩‍🏫 Usage Instructions
+## 🧑‍💻 Usage Instructions
 
-1. Click on **"Enroll Face"** to capture and register your face.
-2. Keep your face visible and steady in front of the webcam.
-3. The system will:
+### Admin Flow
+1. Visit `/admin/login` and log in as admin
+2. Access dashboard, manage users, exams, and view results/violations
 
-   * ✅ Show "Authorized Face Detected" if matched
-   * ⚠️ Show warning if no face or multiple faces are seen
-   * 🚨 Alert if an unauthorized face is detected
+### User Flow
+1. Visit `/login` and log in as a user
+2. Start assigned exam
+3. Allow webcam and microphone access for proctoring
+4. Complete the exam; violations (tab switch, fullscreen exit, etc.) are logged automatically
 
-All events are logged with timestamps and displayed on the page.
+### Proctoring Events Detected
+- Face not detected / multiple faces / unauthorized face
+- Tab switch or window blur
+- Exiting fullscreen
+- High microphone volume (possible talking)
+
+All violations are logged and visible to admins in the dashboard.
 
 ---
 
 ## 📁 Project Structure
-
 ```
-src/
-├── components/
-│   └── RealTimeFaceVerification.jsx
-├── App.jsx
-└── index.js
-
-public/
-└── models/
-    ├── face_landmark_68_model-weights_manifest.json
-    ├── face_recognition_model-weights_manifest.json
-    └── tiny_face_detector_model-weights_manifest.json
+AI-procotoring/
+  client/      # React frontend (Vite, face-api.js, proctoring UI)
+    src/
+      components/
+        Dashboard.jsx
+        DashboardLayout.jsx
+        ExamManagement.jsx
+        exams/
+          ExamHeader.jsx
+          ExamPortal.jsx
+          ...
+        user/
+          FaceDetection.jsx
+          ProctoringEventListener.jsx
+          ...
+      contexts/
+      services/
+      utils/
+    public/models/   # Face recognition models
+    ...
+  server/      # Express backend (API, MongoDB, auth, violations)
+    models/
+    routes/
+    middleware/
+    server.js
+    ...
+  README.md
 ```
 
 ---
 
 ## ✅ Future Improvements
-
-* Multi-user enrollment
-* Spoof detection (anti-photo attack)
-* Log export as PDF/CSV
-* Admin dashboard for monitoring
+- Multi-user enrollment and face database
+- Spoof detection (anti-photo attack)
+- Export logs as PDF/CSV
+- More granular violation severity and analytics
+- Admin dashboard enhancements
 
 ---
 
 ## 🧑 Author
-
-**Bigyan Kalakheti**
+**Bigyan Kalakheti**  
 *Cybersecurity & AI Enthusiast*
 
 ---
 
 ## 📄 License
-
 This project is licensed under the MIT License.

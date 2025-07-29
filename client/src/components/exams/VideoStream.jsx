@@ -40,6 +40,7 @@
 import React, { useState } from 'react';
 import { Video, VideoOff } from 'lucide-react';
 import RealTimeFaceVerification from '../user/FaceDetection' // adjust path accordingly
+import ProctoringEventListener from '../user/ProctoringEventListener';
 
 export const VideoStream = () => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
@@ -51,6 +52,7 @@ export const VideoStream = () => {
           <>
             {/* Render the real-time face verification component with video */}
             <RealTimeFaceVerification />
+            <ProctoringEventListener/>
             <div className="absolute bottom-2 left-2 text-white text-xs bg-black bg-opacity-50 px-2 py-1 rounded">
               Camera Active & Face Verification Running
             </div>
